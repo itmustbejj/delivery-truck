@@ -21,6 +21,9 @@ module DeliveryTruck
       extend self
 
       def provision(stage_name, node, acceptance_env_name, cookbooks)
+        union_env_name = default['delivery_truck']['environments']['union']['name']
+        rehearsal_env_name = default['delivery_truck']['environments']['rehearsal']['name']
+        delivered_env_name = default['delivery_truck']['environments']['delivered']['name']
         if stage_name == 'acceptance'
           handle_acceptance_pinnings(node, acceptance_env_name, cookbooks)
         elsif stage_name == 'union'
@@ -45,8 +48,6 @@ module DeliveryTruck
       #    Union except for Acceptance's original pinnings for the current project.
       # 4) Copy over pins for all project cookbooks.
       def handle_acceptance_pinnings(node, acceptance_env_name, get_all_project_cookbooks)
-        union_env_name = 'union'
-
         union_env = fetch_or_create_environment(union_env_name)
         acceptance_env = fetch_or_create_environment(acceptance_env_name)
 
@@ -109,8 +110,6 @@ module DeliveryTruck
       # Promote all cookbooks and apps related to the current project from
       # Acceptance to Union.
       def handle_union_pinnings(node, acceptance_env_name, project_cookbooks)
-        union_env_name = 'union'
-
         acceptance_env = fetch_or_create_environment(acceptance_env_name)
         union_env = fetch_or_create_environment(union_env_name)
 
@@ -139,12 +138,12 @@ module DeliveryTruck
       end
 
       def handle_rehearsal_pinnings(node)
-        union_env = fetch_or_create_environment('union')
+        union_env = fetch_or_create_environment(union_env_name)
         cleanup_union_changes(union_env, node)
 
         blocked = ::DeliveryTruck::DeliveryApiClient.blocked_projects(node)
 
-        rehearsal_env = fetch_or_create_environment('rehearsal')
+        rehearsal_env = fetch_or_create_environment(rehearsal_env_name)
 
         chef_log.info("current environment: #{rehearsal_env.name}")
         chef_log.info("promoting pinnings from environment: #{union_env.name}")
@@ -174,8 +173,8 @@ module DeliveryTruck
       # override_attributes (not just for the current project, but everything
       # in from_env).
       def handle_delivered_pinnings(node)
-        to_env_name = 'delivered'
-        from_env_name = 'rehearsal'
+        to_env_name = delivered_env_name
+        from_env_name = rehearsal_env_name
 
         chef_log.info("current environment: #{to_env_name}")
         chef_log.info("promoting pinnings from environment: #{from_env_name}")
